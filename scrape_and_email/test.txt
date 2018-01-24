@@ -1,0 +1,21 @@
+<html lang="zh-CN">
+
+<head>
+    <title>好东西传送门</title>
+    <meta charset="UTF-8">
+    <meta name="description" content="好东西传送门，为您精选专业知识" />
+    <meta name="keywords" content="好东西传送门, 知识图谱, 人工智能, 机器学习, 科技资讯, 自然语言处理, NLP, 计算机视觉, CV, 大数据" />    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <link rel="stylesheet" href="/dist/main.dc362cf20e521ae8d352.css">
+</head>
+
+<body>
+    <div id="app"></div>
+    <div id="ana">
+        <script src="https://s19.cnzz.com/z_stat.php?id=1269788086&web_id=1269788086" language="JavaScript"></script>        
+        <script src="https://s13.cnzz.com/z_stat.php?id=1271283777&web_id=1271283777" language="JavaScript"></script>        
+    </div>
+    <script type="text/javascript" src="/dist/vendors.dc362cf20e521ae8d352.js"></script>
+    <script type="text/javascript" src="/dist/main.dc362cf20e521ae8d352.js"></script>
+</body>
+</html>

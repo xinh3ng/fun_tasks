@@ -6,11 +6,10 @@ pillow
 tqdm
 joblib
 
+beautifulsoup4
+
 opencv-python
 scikit-learn
-tensorflow
-tensorboard
-keras
 
 pyqt5
 spyder

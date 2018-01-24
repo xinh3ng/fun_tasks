@@ -4,69 +4,123 @@
 
 Procedure:
     Invoke virtual env (Python 3.6)
-    $ python train_mammo_model.py --dataset_name=mnist --model_name=cnn --optimizer=adam --loss=categorical_crossentropy
+    $ python scrape_and_email.py
 """
 from pdb import set_trace as debug
+import os
 import datetime
-import locale
-import urllib2
-from BeautifulSoup import BeautifulSoup
+import json
+from pathlib import Path
 
+from  urllib.request import urlretrieve
 import smtplib
-from email.MIMEText import MIMEText
-from email.Header import Header
-from email.Utils import formatdate
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.utils import formatdate
 
 from pydsutils.generic import create_logger
+
 logger = create_logger('scrape_and_email')
+now = datetime.datetime.today()
 
-web_charset = "utf-8"
-mail_charset = "ISO-2022-JP"
+email_subject_map = {
+    'http://daily.awesomeport.cn': {
+        'subject': u'好东西传送门 - daily - ' + now.strftime("%Y-%m-%d %H:%M:%S")
+    }
 
-targeturl = "http://hogehoge.com/" # Target URL for scraping
-targetclass = "h1" # Target element for scraping
+}
 
-from_address = "hogehoge@gmail.com" # Sender address (Gmail address)
-from_password = "gmailpassword" # Sender server password (Gmail password)
-to_address   = "fuga@fuga.com" # Recipient address
+def get_email_passwd(sender: str) -> str:
+    """Retrieve email pass code
+    
+    pass code must be saved in JSON format: {email_address: passwd}
+    Args:
+        sender: Sender email 
+    """
+    secretfile = '{home}/cred/email_logins.json'.format(home=os.environ['HOME'])
+    with open(secretfile) as f:
+        data = json.load(f)
+    assert sender in data.keys(), '{} pass code not found'.format(sender)
+    return data[sender]
 
-statusOK = u"Found / "
-statusNG = u"Not Found"
 
-def scraping(url):
+def gen_html_mesg(file):
+    """Generate html content that can go as an email body
+    """
+    content = Path(file).read_text()
+    message = MIMEText(content, 'html')
+    return message
+
+
+def scrape_url(url):
+    """Scrape the give URL"""
+    status = {
+        'ok': 'Found',
+        'ng': 'Not Found'
+    }
+    logger.info('Start scraping the website content...')
+    tmp_html = '/tmp/web_content_to_html.html'
     try:
-        html = urllib2.urlopen(url).read()
-        soup = BeautifulSoup(html)
-        target = soup.find(targetclass).renderContents()
-        if len(target) == 0:
-            return statusNG
-        else:
-            return statusOK + target.decode(web_charset)
+        urlretrieve(url, tmp_html)
     except:
-        return statusNG
+        return MIMEText(status['ng'], 'plain')
 
-def create_message(from_addr, to_addr, subject, body, encoding):
-    msg = MIMEText(body, 'plain', encoding)
-    msg['From'] = from_addr
-    msg['To'] = to_addr
-    msg['Subject'] = Header(subject, encoding)
-    msg["Date"] = formatdate(localtime=True)
+    message = gen_html_mesg(tmp_html)
+    logger.info('Successfully embedded the HTML as an email message...')
+    return message
+
+
+def create_email(subject, message, sender, recipients):
+    msg = MIMEMultipart()  # create a message
+    msg.add_header('From', sender)
+    msg.add_header('To', recipients)
+    msg.add_header('Subject', subject)
+    msg.add_header('Date', formatdate(localtime=True))
+    msg.attach(message)
+    logger.info('Successfully created the entire email')
     return msg
 
-def sendmail(subject, text):
-    msg = create_message(from_address, to_address, subject, text, mail_charset)
-    s = smtplib.SMTP('smtp.gmail.com', 587)
-    s.ehlo()
-    s.starttls()
-    s.ehlo()
-    s.login(from_address, from_password)
-    s.sendmail(from_address, to_address, msg.as_string())
-    s.close()
+
+def send_email(mime_mesg, sender, recipients):
+    """Send out an email"""
+
+    logger.info('Logging onto mail server...')
+    sess = smtplib.SMTP(host='smtp-mail.outlook.com', port=587)
+    sess.set_debuglevel(False)  # set to True for verbose
+    sess.ehlo()
+    sess.starttls()
+    sess.ehlo()
+    sess.login(sender, get_email_passwd(sender))
+    logger.info('Successfully logged on')
+
+    sess.sendmail(sender, recipients, mime_mesg.as_string())
+    sess.quit()
+    logger.info('Successfully sent email and closed mail server')
+    return
+
+
+def main(target_url: str,
+        sender: str = 'xin.heng@outlook.com',
+        recipients: str = 'xin.heng@outlook.com') -> None:
+    """
+    Procedure is simple: create an email message -> log onto email account -> send the email
+    Args:
+        target_url: The website URL to be scraped
+        sender: Sender email
+        recipients: Recipients' emails
+    """
+    subject = email_subject_map[target_url]['subject']
+    message = scrape_url(target_url)
+    msg = create_email(subject, message, sender, recipients)
+    send_email(msg, sender, recipients)
+    return
 
 
 if __name__ == '__main__':
-    d = datetime.datetime.today()
-    time = d.strftime("%Y-%m-%d %H:%M:%S")
-    mailsubject = u"Page Scraping // " + time
-    mailmessage = scraping(targeturl)
-    sendmail(mailsubject, mailmessage)
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--target_url', default='http://daily.awesomeport.cn')
+
+    args = parser.parse_args()
+    main(**vars(args))
+    logger.info("ALL DONE")
